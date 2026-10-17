@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cortocircuito – correnti di guasto ai nodi (CEI EN 60909)</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main id="login" class="login">
+  <form id="loginform" class="logbox" autocomplete="off">
+    <h1>Cortocircuito</h1>
+    <p>Calcolo delle correnti di cortocircuito ai nodi e dei contributi verso la rete</p>
+    <label>Password<input id="pw" type="password" autocomplete="current-password" required></label>
+    <button class="primary" type="submit">Accedi</button>
+    <p id="loginmsg" class="muted" role="status"></p>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="brand"><b>Cortocircuito</b><small>CEI EN 60909 · schema unifilare</small></div>
+    <div class="topbtns">
+      <button data-top="new">Nuovo</button><button data-top="open">Apri</button><button data-top="save">Salva</button><button data-top="sample">Esempio</button><button data-top="logout">Esci</button>
+    </div>
+  </header>
+  <nav id="nav" class="nav"></nav>
+  <section id="v-schema" class="schema">
+    <aside id="palette" class="side"></aside>
+    <div class="center"><div id="toolbar" class="toolbar"></div><div id="canvas" class="canvas"></div><div id="statusbar" class="statusbar"></div></div>
+    <aside id="props" class="side props"></aside>
+  </section>
+  <section id="v-other" class="other" hidden></section>
+  <div id="toast" class="toast" role="status"></div>
+  <div id="busy" class="busy" hidden><span>Attendere…</span></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/model.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/xlsx.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/docx.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/report.js"></script>
+<script src="js/app.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>

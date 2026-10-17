@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><title>Test motore di calcolo</title>
+<style>body{font:14px system-ui;background:#0f1419;color:#e6edf3;padding:20px}.ok{color:#2fb86b}.ko{color:#ef5350}</style></head>
+<body><h1>Test motore di calcolo</h1><pre id="out"></pre>
+<script src="js/model.js"></script><script src="js/calc.js"></script>
+<script>
+const M = Model, out = document.getElementById('out'); let fails = 0;
+function check(name, got, exp, tol) { const ok = Math.abs(got - exp) <= tol; if (!ok) fails++; out.innerHTML += `<span class="${ok ? 'ok' : 'ko'}">${ok ? 'OK ' : 'ERRORE '}</span>${name}: ${got.toFixed(4)} (atteso ${exp.toFixed(4)} ±${tol})\n`; }
+function net(props) {
+  const p = M.emptyProject(), mk = (t, x, y, pr) => { const e = M.create(p, t, x, y); Object.assign(e.p, pr || {}); p.elements.push(e); return e; };
+  const w = (a, b) => { const en = x => x[0].type === 'barra' ? { el: x[0].id, t: 'b', u: x[1] } : { el: x[0].id, t: x[1] }; p.wires.push({ id: M.newId(p), a: en(a), b: en(b) }); };
+  const r = mk('rete', 10, 6, { Pcc: 500, Un: 20 }), mt = mk('barra', 2, 9, { len: 20 }); w([r, 'a'], [mt, 8]);
+  const t = mk('trasf', 6, 10, { Sn: 1000, V1: 20, V2: 0.4, vcc: 6, Pcu: 11 }); w([mt, 4], [t, 'a']);
+  const bt = mk('barra', 2, 16, { len: 20 }); w([t, 'b'], [bt, 4]);
+  Object.assign(p.settings, props || {}); return { p, mt, bt, mk, w };
+}
+let n = net(), a = Calc.analyze(n.p);
+const id = (a, bar) => a.nodes.find(x => x.bars.some(b => b.id === bar.id)).id;
+// MT: Ik'' = Sk/(sqrt3*Un) indipendente da c
+check("MT I''k = 500/(√3·20) kA", a.res.max[id(a, n.mt)].Ik, 500 / (Math.sqrt(3) * 20), 1e-6);
+// BT con c: calcolo manuale IEC 60909
+{ const c = 1.05, ZQ = 1.10 * 400 * 400 / 500e6 * 1e0 / 1; // c=1,10 sulla rete MT, Zq a 20 kV riportata a 0,4 kV
+  const zq = 1.10 * 20e3 ** 2 / 500e6 * (0.4 / 20) ** 2, xq = zq / Math.sqrt(1 + 0.01), rq = 0.1 * xq;
+  const uk = 0.06, ur = 11 / 1000, ux = Math.sqrt(uk * uk - ur * ur), KT = 0.95 * 1.05 / (1 + 0.6 * ux), zt = 400 ** 2 / 1e6;
+  const R = rq + KT * ur * zt, X = xq + KT * ux * zt, Ik = 1.05 * 400 / (Math.sqrt(3) * Math.hypot(R, X)) / 1000;
+  check("BT I''k max con c e KT (calcolo manuale)", a.res.max[id(a, n.bt)].Ik, Ik, 1e-4);
+  const kap = 1.02 + 0.98 * Math.exp(-3 * R / X); check("BT ip = κ√2 I''k", a.res.max[id(a, n.bt)].ip, kap * Math.SQRT2 * Ik, 1e-3); }
+// senza c
+n = net({ useC: false }); a = Calc.analyze(n.p);
+{ const zq = 20e3 ** 2 / 500e6 * (0.4 / 20) ** 2, xq = zq / Math.sqrt(1.01), rq = 0.1 * xq, uk = 0.06, ur = 0.011, ux = Math.sqrt(uk * uk - ur * ur), zt = 0.16;
+  const Ik = 400 / (Math.sqrt(3) * Math.hypot(rq + ur * zt, xq + ux * zt)) / 1000; check("BT I''k senza c", a.res.max[id(a, n.bt)].Ik, Ik, 1e-4); }
+// bifase = √3/2 trifase
+n = net(); a = Calc.analyze(n.p); { const r = a.res.max[id(a, n.bt)]; check("I''k2 = √3/2 I''k3", r.Ik2, r.Ik * Math.sqrt(3) / 2, 1e-9); }
+// inverter: contributo = Icc assegnata (stesso nodo)
+n = net(); { const g = n.mk('gen', 12, 16, { tipo: 'stat', An: 500, Vn: 0.4, kst: 1.2 }); n.w([g, 'a'], [n.bt, 10]); a = Calc.analyze(n.p);
+  const base = Calc.analyze(net().p), nb = net(); const i0 = base.res.max[id(base, nb.bt)].Ik;
+  check("Inverter: ΔI''k = 1,2·In", a.res.max[id(a, n.bt)].Ik - i0, 1.2 * 500 / (Math.sqrt(3) * 0.4) / 1000, 0.02); }
+// ripartizione: somma contributi = totale (solo sorgenti di tensione)
+n = net(); { const g = n.mk('gen', 12, 16, { tipo: 'sinc', An: 800, Vn: 0.4, xd: 15, cosfi: 0.8 }); n.w([g, 'a'], [n.bt, 10]); a = Calc.analyze(n.p); const r = a.res.max[id(a, n.bt)];
+  check("Contributi in fase ≈ totale", r.contribs.reduce((s, c) => s + c.kA, 0), r.Ik, r.Ik * 0.02); }
+out.innerHTML += `\n${fails ? '<span class="ko">' + fails + ' test falliti</span>' : '<span class="ok">Tutti i test superati</span>'}`;
+</script></body></html>
